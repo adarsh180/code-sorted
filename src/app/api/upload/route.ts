@@ -11,16 +11,14 @@ export async function POST(req: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     
     const ext = file.name.split('.').pop() || "pdf";
-    const cleanName = file.name.split('.')[0].replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
-    const filename = `${cleanName}-${Date.now()}.${ext}`;
+    const mimeType = file.type || "application/pdf";
     
-    const uploadDir = path.join(process.cwd(), "public", "uploads");
-    await fs.mkdir(uploadDir, { recursive: true });
+    // Instead of using the ephemeral Vercel filesystem which fails, 
+    // we convert the file directly into a Base64 data URI!
+    const base64String = buffer.toString("base64");
+    const dataUrl = `data:${mimeType};base64,${base64String}`;
     
-    const filepath = path.join(uploadDir, filename);
-    await fs.writeFile(filepath, buffer);
-    
-    return NextResponse.json({ url: `/uploads/${filename}` });
+    return NextResponse.json({ url: dataUrl });
   } catch (error) {
     console.error("Upload route error:", error);
     return NextResponse.json({ error: "Failed to upload file to local storage" }, { status: 500 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createQuiz, deleteQuiz } from "../actions";
+import { createQuiz, deleteQuiz, updateQuiz } from "../actions";
 import Link from "next/link";
 
 type Quiz = any;
@@ -10,6 +10,7 @@ type Folder = any;
 export default function QuizEngineClient({ initialQuizzes, folders }: { initialQuizzes: Quiz[], folders: Folder[] }) {
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [editQuiz, setEditQuiz] = useState<Quiz | null>(null);
   
   const [title, setTitle] = useState("");
   const [desc, setDesc] = useState("");
@@ -40,12 +41,25 @@ export default function QuizEngineClient({ initialQuizzes, folders }: { initialQ
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {initialQuizzes.map(quiz => (
           <div key={quiz.id} className="p-6 rounded-2xl bg-white/5 border border-white/10 hover:border-indigo-500/50 transition-colors group relative flex flex-col h-full">
-            <button 
-              onClick={() => deleteQuiz(quiz.id)}
-              className="absolute top-4 right-4 text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-rose-300"
-            >
-              ✕
-            </button>
+            <div className="absolute top-4 right-4 flex gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button 
+                onClick={() => {
+                  setEditQuiz(quiz);
+                  setTitle(quiz.title);
+                  setDesc(quiz.description || "");
+                  setFolderId(quiz.folderId || quiz.folder?.id || "");
+                }}
+                className="text-indigo-400 hover:text-indigo-300 text-sm font-medium"
+              >
+                ✎ Edit
+              </button>
+              <button 
+                onClick={() => deleteQuiz(quiz.id)}
+                className="text-rose-400 hover:text-rose-300 text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
             <h3 className="text-xl font-bold text-white mb-2 pr-6">{quiz.title}</h3>
             <p className="text-sm text-gray-400 mb-4 line-clamp-2 flex-grow">{quiz.description}</p>
             
@@ -97,6 +111,44 @@ export default function QuizEngineClient({ initialQuizzes, folders }: { initialQ
               <div className="flex gap-3 justify-end mt-6">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 rounded-lg text-gray-400 hover:text-white transition-colors">Cancel</button>
                 <button type="submit" disabled={loading} className="px-4 py-2 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors disabled:opacity-50">Create Quiz</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {editQuiz && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-[#0f1123] p-6 rounded-2xl border border-white/10 w-full max-w-md shadow-2xl relative">
+            <h3 className="text-xl font-semibold text-white mb-4">Edit Quiz Settings</h3>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              if (!folderId) return alert("Please select a target folder");
+              setLoading(true);
+              await updateQuiz(editQuiz.id, title, desc, folderId);
+              setEditQuiz(null);
+              setLoading(false);
+            }} className="space-y-4">
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Quiz Title</label>
+                <input required value={title} onChange={e => setTitle(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Description</label>
+                <textarea rows={2} value={desc} onChange={e => setDesc(e.target.value)} className="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white placeholder-gray-600 focus:outline-none focus:border-indigo-500 flex-none resize-none" />
+              </div>
+              <div>
+                <label className="block text-sm text-gray-400 mb-1">Target Folder</label>
+                <select required value={folderId} onChange={e => setFolderId(e.target.value)} className="w-full bg-[#15182e] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-indigo-500">
+                  <option value="" disabled>Select a folder</option>
+                  {folders.map((f: any) => (
+                    <option key={f.id} value={f.id}>{f.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3 justify-end mt-6">
+                <button type="button" onClick={() => setEditQuiz(null)} className="px-4 py-2 rounded-lg text-gray-400 hover:text-white transition-colors">Cancel</button>
+                <button type="submit" disabled={loading} className="px-4 py-2 rounded-lg bg-indigo-500 text-white hover:bg-indigo-600 transition-colors disabled:opacity-50">Save Changes</button>
               </div>
             </form>
           </div>

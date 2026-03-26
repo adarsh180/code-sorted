@@ -12,6 +12,49 @@ type Course = {
 const INPUT = "w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white text-sm placeholder-white/25 focus:outline-none focus:border-yellow-500/60 transition-colors";
 const LABEL = "block text-xs font-semibold uppercase tracking-widest text-white/40 mb-1.5";
 
+function ImageUploader({ name, defaultValue }: { name: string, defaultValue?: string }) {
+  const [url, setUrl] = useState(defaultValue || "");
+  const [uploading, setUploading] = useState(false);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) return alert("File too large. Max 5MB.");
+    
+    setUploading(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.url) setUrl(data.url);
+      else alert("Upload failed.");
+    } catch {
+      alert("Failed to upload image");
+    }
+    setUploading(false);
+  };
+
+  return (
+    <div className="space-y-2">
+      <input type="hidden" name={name} value={url} />
+      {url ? (
+        <div className="relative h-32 w-full rounded-xl overflow-hidden border border-white/10 group">
+          <img src={url} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+             <button type="button" onClick={() => setUrl("")} className="px-3 py-1 bg-rose-500 text-white text-xs font-bold rounded-lg">Remove Image</button>
+          </div>
+        </div>
+      ) : (
+        <label className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-white/20 rounded-xl cursor-pointer hover:border-indigo-400 hover:bg-indigo-500/5 transition-all">
+          <span className="text-white/50 text-xs font-medium">{uploading ? "Uploading..." : "Click to select image file"}</span>
+          <input type="file" accept="image/*" className="hidden" onChange={handleFile} disabled={uploading} />
+        </label>
+      )}
+    </div>
+  );
+}
+
 export function CoursesAdminClient({ initialCourses }: { initialCourses: Course[] }) {
   const [courses, setCourses] = useState(initialCourses);
   const [showCreate, setShowCreate] = useState(false);
@@ -143,8 +186,8 @@ export function CoursesAdminClient({ initialCourses }: { initialCourses: Course[
                 <textarea name="description" rows={3} placeholder="What will students learn?" className={INPUT + " resize-none"} />
               </div>
               <div>
-                <label className={LABEL}>Thumbnail URL (optional)</label>
-                <input name="thumbnail" placeholder="https://..." className={INPUT} />
+                <label className={LABEL}>Thumbnail File</label>
+                <ImageUploader name="thumbnail" />
               </div>
               <div>
                 <label className={LABEL}>Video Embed URL (optional)</label>
@@ -180,6 +223,84 @@ export function CoursesAdminClient({ initialCourses }: { initialCourses: Course[
                   Create Course
                 </button>
               </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Course Modal */}
+      {editId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+          <div className="w-full max-w-lg rounded-2xl p-8 shadow-2xl overflow-y-auto max-h-[90vh]"
+            style={{ background: "#0c0d1a", border: "1px solid rgba(99,102,241,0.2)" }}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold text-white">Edit Course</h2>
+              <button onClick={() => setEditId(null)} className="text-white/40 hover:text-white text-xl">✕</button>
+            </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const fd = new FormData(e.currentTarget);
+              const data = {
+                title: fd.get("title") as string,
+                description: fd.get("description") as string,
+                thumbnail: fd.get("thumbnail") as string,
+                videoUrl: fd.get("videoUrl") as string,
+                content: fd.get("content") as string,
+                isFree: (fd.get("isFreePref") as string) === "true",
+                price: parseFloat(fd.get("price") as string) || 0,
+              };
+              if (data.isFree) data.price = 0;
+              await updateCourse(editId, data);
+              setEditId(null);
+              window.location.reload();
+            }} className="space-y-4">
+              
+              {(() => {
+                const c = courses.find(x => x.id === editId);
+                if (!c) return null;
+                return (
+                  <>
+                    <div>
+                      <label className={LABEL}>Course Title</label>
+                      <input name="title" required defaultValue={c.title} className={INPUT} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Description</label>
+                      <textarea name="description" rows={3} defaultValue={c.description || ""} className={INPUT + " resize-none"} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Thumbnail File</label>
+                      <ImageUploader name="thumbnail" defaultValue={c.thumbnail || ""} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Video Embed URL (optional)</label>
+                      <input name="videoUrl" defaultValue={(c as any).videoUrl || ""} className={INPUT} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Course Content (Markdown)</label>
+                      <textarea name="content" rows={5} defaultValue={(c as any).content || ""} className={INPUT + " resize-none font-mono text-xs"} />
+                    </div>
+                    <div>
+                      <label className={LABEL}>Pricing (Free/Paid)</label>
+                      <select name="isFreePref" defaultValue={String(c.isFree)} className={INPUT + " mb-3 cursor-pointer"}>
+                        <option value="true">🆓 Free</option>
+                        <option value="false">₹ Paid</option>
+                      </select>
+                      <input name="price" type="number" min="0" step="0.01" defaultValue={c.price} placeholder="Price in INR (Required if Paid)" className={INPUT} />
+                    </div>
+                    <div className="flex gap-3 pt-2">
+                      <button type="button" onClick={() => setEditId(null)}
+                        className="flex-1 py-2.5 rounded-xl text-sm text-white/50 hover:text-white transition-colors">Cancel</button>
+                      <button type="submit" disabled={isPending}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-bold transition-all text-white"
+                        style={{ background: "linear-gradient(135deg,#6366f1,#8b5cf6)" }}>
+                        Save Changes
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+              
             </form>
           </div>
         </div>

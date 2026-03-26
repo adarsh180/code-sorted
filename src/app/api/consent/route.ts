@@ -22,8 +22,29 @@ export async function POST(req: Request) {
     const forwardedFor = headersList.get("x-forwarded-for");
     const ipAddress = forwardedFor ? forwardedFor.split(",")[0] : "127.0.0.1";
 
-    // In a real app we'd resolve IP to approx location here via a service like ipapi
-    const approxLocation = "Unknown Location based on IP"; 
+    // Resolve IP to approx location (using Vercel headers or ip-api fallback)
+    const city = headersList.get("x-vercel-ip-city");
+    const region = headersList.get("x-vercel-ip-region");
+    const country = headersList.get("x-vercel-ip-country");
+    
+    let approxLocation = "Unknown Location based on IP";
+    if (city && country) {
+      approxLocation = `${city}, ${region ? region + ", " : ""}${country}`;
+    } else if (ipAddress && ipAddress !== "127.0.0.1" && ipAddress !== "::1") {
+      try {
+        const geoRes = await fetch(`http://ip-api.com/json/${ipAddress}`);
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          if (geoData.status === "success") {
+            approxLocation = `${geoData.city}, ${geoData.regionName}, ${geoData.country}`;
+          }
+        }
+      } catch (e) {
+        console.error("Geo IP lookup failed", e);
+      }
+    } else {
+      approxLocation = "Localhost Development";
+    } 
 
     const encryptedIp = encrypt(ipAddress);
     const encryptedPrecise = preciseCoordinates ? encrypt(preciseCoordinates) : null;

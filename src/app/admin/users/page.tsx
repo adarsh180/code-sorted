@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { RemoveUserButton } from "@/components/admin/RemoveUserButton";
+import Link from "next/link";
 
 export default async function UserManagementPage() {
   const users = await prisma.user.findMany({
@@ -120,7 +121,14 @@ export default async function UserManagementPage() {
                     </td>
                     {/* Actions */}
                     <td className="px-6 py-4">
-                      <RemoveUserButton userId={user.id} userName={user.name} />
+                      <div className="flex items-center gap-3">
+                        <Link href={`/admin/users/${user.id}`} 
+                          className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap"
+                          style={{ background: "rgba(99,102,241,0.1)", color: "#a5b4fc", border: "1px solid rgba(99,102,241,0.2)" }}>
+                          View Profile ↗
+                        </Link>
+                        <RemoveUserButton userId={user.id} userName={user.name} />
+                      </div>
                     </td>
                   </tr>
                 );

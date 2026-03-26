@@ -79,6 +79,24 @@ export async function createQuiz(title: string, description: string, folderId: s
   }
 }
 
+export async function updateQuiz(id: string, title: string, description: string, folderId: string) {
+  try {
+    const quiz = await prisma.quiz.update({
+      where: { id },
+      data: {
+        title,
+        description,
+        folderId,
+      },
+    });
+    revalidatePath("/admin/quizzes");
+    return { success: true, quiz };
+  } catch (error) {
+    console.error("Failed to update quiz:", error);
+    return { success: false, error: "Failed to update quiz" };
+  }
+}
+
 export async function deleteQuiz(id: string) {
   try {
     await prisma.quiz.delete({ where: { id } });
