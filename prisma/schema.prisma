@@ -128,8 +128,8 @@ model SubjectFolder {
 model Note {
   id          String   @id @default(cuid())
   title       String
-  description String?  @db.Text
-  fileUrl     String   @db.Text
+  description String?  @db.LongText
+  fileUrl     String   @db.LongText
   folderId    String
   folder      SubjectFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
@@ -180,10 +180,10 @@ model Option {
 model Course {
   id          String   @id @default(cuid())
   title       String
-  description String?  @db.Text
-  thumbnail   String?  @db.Text
-  videoUrl    String?  @db.Text
-  content     String?  @db.Text
+  description String?  @db.LongText
+  thumbnail   String?  @db.LongText
+  videoUrl    String?  @db.LongText
+  content     String?  @db.LongText
   price       Float    @default(0)       // 0 = free
   isFree      Boolean  @default(true)
   isPublished Boolean  @default(false)

@@ -47,7 +47,7 @@ export function decrypt(encryptedData: string): string | null {
     
     return decrypted;
   } catch (error) {
-    console.error('Decryption error:', error);
+    // Silently return null on decryption failure (e.g. key mismatch after redeploys without ENCRYPTION_KEY env var)
     return null;
   }
 }

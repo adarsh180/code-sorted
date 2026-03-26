@@ -3,10 +3,11 @@ import QuizEditorClient from "./quiz-editor-client";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
-export default async function QuizEditorPage({ params }: { params: { id: string } }) {
-  // Await params for next 15 compatibility officially if needed, but params.id is synchronous mostly.
+export default async function QuizEditorPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  
   const quiz = await prisma.quiz.findUnique({
-    where: { id: params.id },
+    where: { id: resolvedParams.id },
     include: {
       folder: true,
       questions: {

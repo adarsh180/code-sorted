@@ -37,9 +37,11 @@ function parseDevice(userAgent: string | null) {
   return { os, browser, type, raw: userAgent };
 }
 
-export default async function UserDetailsPage({ params }: { params: { id: string } }) {
+export default async function UserDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const resolvedParams = await params;
+  
   const user = await prisma.user.findUnique({
-    where: { id: params.id },
+    where: { id: resolvedParams.id },
     include: {
       accounts: true,
       userSessions: { orderBy: { lastActiveAt: "desc" } },
