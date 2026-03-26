@@ -1,0 +1,228 @@
+// Prisma schema for CodeSorted — MySQL / TiDB Cloud
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                     String    @id @default(cuid())
+  name                   String?
+  email                  String    @unique
+  emailVerified          DateTime?
+  image                  String?
+  hashedPassword         String?
+  role                   String    @default("STUDENT") // STUDENT or ADMIN
+  consentGiven           Boolean   @default(false)
+  preciseLocationAllowed Boolean   @default(false)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  birthday               DateTime?
+  age                    Int?
+  college                String?
+  course                 String?
+  gender                 String?
+
+  accounts     Account[]
+  sessions     Session[]
+  userSessions UserSession[]
+  securityLogs SecurityLog[]
+  enrollments  CourseEnrollment[]
+  payments     PaymentOrder[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model UserSession {
+  id             String   @id @default(cuid())
+  userId         String
+  ipAddress      String?  
+  deviceInfo     String?
+  approxLocation String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  lastActiveAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("user_sessions")
+}
+
+model SecurityLog {
+  id                       String   @id @default(cuid())
+  userId                   String
+  encryptedIp              String?
+  deviceInfo               String?
+  approxLocation           String?
+  encryptedPreciseLocation String?  // Latitude and longitude encrypted
+  actionType               String    // e.g., 'login', 'logout', 'download', 'quiz_attempt'
+  isSuspicious             Boolean  @default(false)
+  timestamp                DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("security_logs")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique @db.VarChar(512)
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model SubjectFolder {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  parentId    String?
+  parent      SubjectFolder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children    SubjectFolder[] @relation("FolderHierarchy")
+  notes       Note[]
+  quizzes     Quiz[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@map("subject_folders")
+}
+
+model Note {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  fileUrl     String   @db.Text
+  folderId    String
+  folder      SubjectFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("notes")
+}
+
+model Quiz {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  folderId    String
+  folder      SubjectFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  questions   Question[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("quizzes")
+}
+
+model Question {
+  id          String   @id @default(cuid())
+  quizId      String
+  quiz        Quiz     @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  text        String
+  explanation String?
+  orderIndex  Int      @default(0)
+  options     Option[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("questions")
+}
+
+model Option {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String
+  isCorrect  Boolean  @default(false)
+
+  @@map("options")
+}
+
+// ───── Courses & Payments ─────────────────────────────────────────────────────
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String?  @db.Text
+  thumbnail   String?  @db.Text
+  videoUrl    String?  @db.Text
+  content     String?  @db.Text
+  price       Float    @default(0)       // 0 = free
+  isFree      Boolean  @default(true)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  enrollments CourseEnrollment[]
+  payments    PaymentOrder[]
+
+  @@map("courses")
+}
+
+model CourseEnrollment {
+  id        String   @id @default(cuid())
+  userId    String
+  courseId  String
+  enrolledAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, courseId])
+  @@map("course_enrollments")
+}
+
+model PaymentOrder {
+  id              String   @id @default(cuid())
+  userId          String
+  courseId        String
+  razorpayOrderId String   @unique
+  razorpayPaymentId String? 
+  razorpaySignature String?
+  amount          Float
+  currency        String   @default("INR")
+  status          String   @default("PENDING") // PENDING | SUCCESS | FAILED
+  createdAt       DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("payment_orders")
+}

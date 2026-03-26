@@ -1,0 +1,2 @@
+﻿src/app/auth/actions.ts(24,40): error TS2339: Property 'errors' does not exist on type 'ZodError<{ name: string; email: string; password: string; confirmPassword: string; }>'.
+src/app/auth/actions.ts(76,40): error TS2339: Property 'errors' does not exist on type 'ZodError<{ email: string; password: string; }>'.
